@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 
+	"golang.org/x/sys/windows"
 	_ "modernc.org/sqlite"
 )
 
@@ -53,7 +54,14 @@ func readCookieRow(dbPath string) (string, []byte, error) {
 func copyToTemp(src string) (string, error) {
 	in, err := os.Open(src)
 	if err != nil {
-		return "", ErrCookieDBMissing
+		// In Windows, a running Slack process locks the Cookie file,
+		// preventing access to other processes. If the Cookie file is locked,
+		// inform the user to close Slack and try again.
+		if isWindowsSharingViolation(err) {
+			return "", ErrCookieLocked
+		} else {
+			return "", ErrCookieDBMissing
+		}
 	}
 	defer in.Close()
 
@@ -71,4 +79,15 @@ func copyToTemp(src string) (string, error) {
 		return "", err
 	}
 	return f.Name(), nil
+}
+
+// isWindowsSharingViolation checks if the error is a resource sharing violation
+// caused by a running Slack process on Windows.
+func isWindowsSharingViolation(err error) bool {
+	if pathError, ok := errors.AsType[*os.PathError](err); ok {
+		if errno, ok := errors.AsType[windows.Errno](pathError); ok {
+			return errno == windows.ERROR_SHARING_VIOLATION
+		}
+	}
+	return false
 }

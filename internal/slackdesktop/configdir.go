@@ -11,7 +11,12 @@ import (
 func configDirForOS(goos string, getenv func(string) string, exists func(string) bool) string {
 	switch goos {
 	case "windows":
-		return filepath.Join(getenv("APPDATA"), "Slack")
+		first := filepath.Join(getenv("APPDATA"), "Slack")
+		second := filepath.Join(getenv("LOCALAPPDATA"), "Packages", "com.tinyspeck.slackdesktop_8yrtsj140pw4g", "LocalCache", "Roaming", "Slack")
+		if exists(first) {
+			return first
+		}
+		return second
 	case "darwin":
 		home := getenv("HOME")
 		first := filepath.Join(home, "Library", "Application Support", "Slack")

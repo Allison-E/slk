@@ -53,7 +53,14 @@ func readCookieRow(dbPath string) (string, []byte, error) {
 func copyToTemp(src string) (string, error) {
 	in, err := os.Open(src)
 	if err != nil {
-		return "", ErrCookieDBMissing
+		// In Windows, a running Slack process locks the Cookie file,
+		// preventing access to other processes. If the Cookie file is locked,
+		// inform the user to close Slack and try again.
+		if IsFileLockError(err) {
+			return "", ErrCookieDBMissing
+		} else {
+			return "", ErrCookieDBMissing
+		}
 	}
 	defer in.Close()
 
